@@ -1,28 +1,35 @@
-module clkdivider(
-    input clk,
-    output reg clk1Hz,
-    output reg clk2Hz,
-    output reg clkref // ~4kHz dùng quét LED
+// Sinh tick 1 Hz (xung 1 clock / giây) để tăng giây,và tín hiệu blink 2 Hz (toggle mỗi 0.5 s) để nhấp nháy
+module clkdivider #(
+    parameter integer CLK_HZ = 50_000_000
+)(
+    input  wire clk,
+    input  wire rst_n,
+    output reg  clk1Hz,     // xung 1 clk / giây
+    output reg  blink2Hz     // sóng vuông ~ 1 Hz (toggle mỗi 0.5 s)
 );
-    reg [25:0] cnt1Hz = 0;
-    reg [13:0] cntref = 0;
-
-    always @(posedge clk) begin
-        // Chia clock 50MHz xuống 1Hz và 2Hz
-        if(cnt1Hz == 25_000_000-1) begin
-            cnt1Hz <= 0;
-            clk1Hz <= ~clk1Hz;
-            clk2Hz <= ~clk2Hz;
+    // --- Tick 1 Hz (pulse) ---
+    reg [31:0] c1;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin c1 <= 0; clk1Hz <= 1'b0; end
+        else if (c1 == CLK_HZ - 1) begin
+            c1 <= 0;
+            clk1Hz <= 1'b1;   // xung 1 clk
         end else begin
-            cnt1Hz <= cnt1Hz + 1;
+            c1 <= c1 + 1'b1;
+            clk1Hz <= 1'b0;
         end
+    end
 
-        // Chia clock 50MHz xuống ~4kHz để quét LED
-        if(cntref == 6_250-1) begin
-            cntref <= 0;
-            clkref <= ~clkref;
+    // --- Blink 2 Hz (toggle mỗi 0.5 s) ---
+    reg [31:0] c2;
+    localparam integer HALF_SEC = CLK_HZ/2;
+    always @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin c2 <= 0; blink2Hz <= 1'b0; end
+        else if (c2 == HALF_SEC - 1) begin
+            c2 <= 0;
+            blink2Hz <= ~blink2Hz; // sóng vuông
         end else begin
-            cntref <= cntref + 1;
+            c2 <= c2 + 1'b1;
         end
     end
 endmodule
